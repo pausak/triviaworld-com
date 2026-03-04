@@ -221,239 +221,240 @@ npx drizzle-kit studio    # Open Drizzle Studio GUI
 - **Web Audio API for sounds**: Synthesized tones instead of audio files — zero additional assets to load.
 - **SQLite**: Single-file database, zero configuration, perfect for self-hosted deployments.
 
-## Deploying to Cloudflare Pages
+## Deployment
 
-This project uses SQLite via better-sqlite3 (a native C++ addon) and bcrypt (also native). These won't run on Cloudflare's edge runtime. To deploy to Cloudflare, you need to:
+This project uses SQLite (via better-sqlite3) which requires a persistent filesystem. It's designed for deployment as a long-running Node.js server, not serverless. A `Dockerfile` is included for easy deployment to any container platform.
 
-1. Switch from **better-sqlite3** to **Cloudflare D1** (Cloudflare's edge SQLite)
-2. Switch from **bcrypt** to **bcryptjs** (pure JavaScript implementation)
-3. Use **@opennextjs/cloudflare** to adapt Next.js for Cloudflare Pages
+### Hosting Options
 
-### Prerequisites
+| Platform | Cost | Persistent DB | Deploy Method |
+|----------|------|---------------|---------------|
+| **[Fly.io](https://fly.io)** | Free tier (3 shared VMs, 1GB volumes) | Persistent volumes | `fly launch` |
+| **[Railway](https://railway.app)** | $5/mo credit on hobby plan | Persistent disk | GitHub connect |
+| **[Render](https://render.com)** | Free tier (sleeps after 15min) | Persistent on $7/mo plan | GitHub connect |
+| **Any VPS** (DigitalOcean, Linode, Hetzner) | ~$4-6/mo | Full disk | Docker or direct |
 
-- A [Cloudflare account](https://dash.cloudflare.com/sign-up)
-- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) installed and authenticated
+---
 
-```bash
-npm install -g wrangler
-wrangler login
-```
+### Deploy to Fly.io (Recommended)
 
-### Step 1: Install Cloudflare Dependencies
+Fly.io's free tier covers this project easily and provides persistent volumes for the SQLite database.
 
-```bash
-# Remove incompatible native packages
-npm uninstall better-sqlite3 @types/better-sqlite3 bcrypt @types/bcrypt
-
-# Install Cloudflare-compatible replacements
-npm install bcryptjs drizzle-orm
-npm install -D @opennextjs/cloudflare bcryptjs @types/bcryptjs
-```
-
-### Step 2: Create a D1 Database
+#### 1. Install the Fly CLI
 
 ```bash
-# Create the D1 database
-wrangler d1 create triviaworld-db
+# macOS
+brew install flyctl
+
+# or via install script
+curl -L https://fly.io/install.sh | sh
 ```
 
-This outputs a database ID. Copy it for the next step.
-
-### Step 3: Create `wrangler.jsonc`
-
-Create a `wrangler.jsonc` file in the project root:
-
-```jsonc
-{
-  "name": "triviaworld",
-  "compatibility_date": "2024-12-01",
-  "compatibility_flags": ["nodejs_compat"],
-  "pages_build_output_dir": ".open-next",
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "triviaworld-db",
-      "database_id": "<your-database-id-from-step-2>"
-    }
-  ],
-  "vars": {
-    "JWT_SECRET": "change-this-to-a-secure-random-string"
-  }
-}
-```
-
-> **Note:** For production, set `JWT_SECRET` as an encrypted secret instead:
-> ```bash
-> wrangler secret put JWT_SECRET
-> ```
-
-### Step 4: Update the Database Connection
-
-Replace `src/lib/db/index.ts` with:
-
-```typescript
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "./schema";
-
-export function getDb(env: { DB: D1Database }) {
-  return drizzle(env.DB, { schema });
-}
-
-export { schema };
-```
-
-### Step 5: Update Drizzle Config
-
-Update `drizzle.config.ts`:
-
-```typescript
-import { defineConfig } from "drizzle-kit";
-
-export default defineConfig({
-  schema: "./src/lib/db/schema.ts",
-  out: "./drizzle",
-  dialect: "sqlite",
-  dbCredentials: {
-    // For local dev with wrangler
-    url: ".wrangler/state/v3/d1/miniflare-D1DatabaseObject/<your-db-id>/db.sqlite",
-  },
-});
-```
-
-### Step 6: Update API Routes to Use D1
-
-Every API route that imports `db` needs to access D1 through the Cloudflare environment. In Next.js on Cloudflare, you access bindings via `getRequestContext()`:
-
-```typescript
-// In each API route, replace:
-import { db } from "@/lib/db";
-
-// With:
-import { getDb } from "@/lib/db";
-import { getRequestContext } from "@cloudflare/next-on-pages";
-
-// Then inside the handler:
-const { env } = getRequestContext();
-const db = getDb(env);
-```
-
-**Affected files:**
-- `src/app/api/game/session/route.ts`
-- `src/app/api/game/answer/route.ts`
-- `src/app/api/game/complete/route.ts`
-- `src/app/api/leaderboard/route.ts`
-- `src/app/api/trivia/daily/route.ts`
-- `src/app/api/auth/register/route.ts`
-- `src/app/api/auth/login/route.ts`
-- `src/app/api/auth/me/route.ts`
-- `src/app/api/profile/stats/route.ts`
-- `src/app/api/profile/achievements/route.ts`
-- `src/lib/achievements.ts`
-- `src/lib/db/users.ts`
-
-### Step 7: Swap bcrypt for bcryptjs
-
-In `src/app/api/auth/register/route.ts` and `src/app/api/auth/login/route.ts`, replace:
-
-```typescript
-// Before
-import bcrypt from "bcrypt";
-
-// After
-import bcrypt from "bcryptjs";
-```
-
-The API is identical — no other code changes needed.
-
-### Step 8: Push Schema to D1
+#### 2. Sign up & authenticate
 
 ```bash
-# Apply schema to your remote D1 database
-wrangler d1 migrations apply triviaworld-db --remote
-
-# Or use Drizzle to push directly (local dev)
-npx drizzle-kit push
+fly auth signup
+# or if you already have an account:
+fly auth login
 ```
 
-### Step 9: Add the OpenNext Config
+#### 3. Launch the app
 
-Create `open-next.config.ts` in the project root:
-
-```typescript
-import { defineConfig } from "@opennextjs/cloudflare";
-
-export default defineConfig({});
-```
-
-### Step 10: Build and Deploy
+From the project root:
 
 ```bash
-# Build for Cloudflare
-npx cloudflare
-# Deploy
-wrangler deploy
+fly launch
 ```
 
-Or connect your GitHub repo for automatic deployments:
+When prompted:
+- Choose a region close to you
+- Say **yes** to setting up a Postgresql database? **No** (we use SQLite)
+- Say **yes** to deploy now? **No** (we need to set up a volume first)
 
-1. Go to [Cloudflare Dashboard → Pages](https://dash.cloudflare.com/?to=/:account/pages)
-2. Click **Create a project** → **Connect to Git**
-3. Select the `triviaworld-com` repository
-4. Set build settings:
-   - **Build command:** `npx cloudflare`
-   - **Build output directory:** `.open-next`
-5. Add the D1 database binding under **Settings → Functions → D1 database bindings**
-6. Add `JWT_SECRET` under **Settings → Environment variables**
-
-### Step 11: Local Development with D1
-
-For local development using D1 instead of better-sqlite3:
+#### 4. Create a persistent volume for SQLite
 
 ```bash
-# Run Next.js with wrangler (provides local D1)
-wrangler dev
+# Create a 1GB volume (free tier includes 1GB)
+fly volumes create triviaworld_data --size 1 --region <your-region>
 ```
 
-### Summary of Changes
+#### 5. Configure `fly.toml`
 
-| Component | Local (current) | Cloudflare |
-|-----------|----------------|------------|
-| Database | better-sqlite3 | Cloudflare D1 |
-| DB Driver | `drizzle-orm/better-sqlite3` | `drizzle-orm/d1` |
-| Password Hashing | bcrypt (native) | bcryptjs (pure JS) |
-| Build Tool | `next build` | `npx cloudflare` (via @opennextjs/cloudflare) |
-| Config | `next.config.ts` | `next.config.ts` + `wrangler.jsonc` |
-| Runtime | Node.js | Cloudflare Workers |
+The `fly launch` command creates a `fly.toml`. Update it to mount the volume and set environment variables:
 
-### Alternative: Deploy with Docker (Self-Hosted)
+```toml
+app = 'your-app-name'
+primary_region = 'your-region'
 
-If you prefer to keep better-sqlite3 and deploy to a VPS or container platform:
+[build]
 
-```dockerfile
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-RUN npx drizzle-kit push
-RUN npm run build
+[env]
+  NODE_ENV = 'production'
+  PORT = '3000'
 
-FROM node:20-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/triviaworld.db ./
-EXPOSE 3000
-CMD ["node", "server.js"]
+[mounts]
+  source = 'triviaworld_data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
 ```
+
+#### 6. Set secrets
 
 ```bash
+fly secrets set JWT_SECRET=$(openssl rand -hex 32)
+```
+
+#### 7. Update the database path for production
+
+Create a `.env.production` file:
+
+```env
+DATABASE_URL=/data/triviaworld.db
+```
+
+Then update `src/lib/db/index.ts` to use it (optional — the default `./triviaworld.db` works if you update the Dockerfile `CMD` to copy the DB to the volume on first run).
+
+#### 8. Deploy
+
+```bash
+fly deploy
+```
+
+Your app will be live at `https://your-app-name.fly.dev`.
+
+#### Subsequent deploys
+
+```bash
+fly deploy
+```
+
+That's it. Fly builds the Docker image and deploys it automatically.
+
+---
+
+### Deploy to Railway
+
+#### 1. Push your code to GitHub
+
+(Already done — your repo is at `github.com/pausak/triviaworld-com`)
+
+#### 2. Connect to Railway
+
+1. Go to [railway.app](https://railway.app) and sign in with GitHub
+2. Click **New Project** → **Deploy from GitHub Repo**
+3. Select `triviaworld-com`
+4. Railway auto-detects the Dockerfile and starts building
+
+#### 3. Add environment variables
+
+In the Railway dashboard, go to your service's **Variables** tab:
+
+```
+JWT_SECRET=<generate-a-random-string>
+NODE_ENV=production
+PORT=3000
+```
+
+#### 4. Add a persistent volume
+
+1. In your service settings, go to **Volumes**
+2. Create a volume mounted at `/data`
+3. Update your database path to use `/data/triviaworld.db`
+
+#### 5. Generate a domain
+
+In **Settings → Networking**, click **Generate Domain** to get a public URL.
+
+---
+
+### Deploy to Render
+
+#### 1. Connect your repo
+
+1. Go to [render.com](https://render.com) and sign in
+2. Click **New → Web Service**
+3. Connect your GitHub repo `triviaworld-com`
+
+#### 2. Configure the service
+
+- **Runtime:** Docker
+- **Instance Type:** Free (or Starter $7/mo for persistent disk)
+- **Environment Variables:**
+  ```
+  JWT_SECRET=<generate-a-random-string>
+  NODE_ENV=production
+  ```
+
+#### 3. Add a disk (Starter plan and above)
+
+1. Go to **Disks** in your service settings
+2. Add a disk mounted at `/data` with 1GB
+3. Update your database path to use `/data/triviaworld.db`
+
+> **Note:** The free tier has an ephemeral filesystem — the database resets on each deploy. Upgrade to the Starter plan ($7/mo) for persistent disks.
+
+#### 4. Deploy
+
+Render auto-deploys on every push to `main`.
+
+---
+
+### Deploy with Docker (Any Server)
+
+If you have a VPS or any machine with Docker:
+
+```bash
+# Build the image
 docker build -t triviaworld .
-docker run -p 3000:3000 triviaworld
+
+# Run with a persistent volume for the database
+docker run -d \
+  --name triviaworld \
+  -p 3000:3000 \
+  -v triviaworld_data:/app \
+  -e JWT_SECRET=$(openssl rand -hex 32) \
+  -e NODE_ENV=production \
+  triviaworld
 ```
 
-This avoids the D1 migration entirely and works on any platform that supports Docker (Fly.io, Railway, DigitalOcean, AWS, etc.).
+The app will be available at `http://your-server-ip:3000`.
+
+To put it behind HTTPS, use a reverse proxy like [Caddy](https://caddyserver.com) (automatic HTTPS) or nginx with Let's Encrypt.
+
+#### Docker Compose
+
+Create a `docker-compose.yml`:
+
+```yaml
+services:
+  triviaworld:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=change-this-to-a-secure-random-string
+    volumes:
+      - triviaworld_data:/app
+    restart: unless-stopped
+
+volumes:
+  triviaworld_data:
+```
+
+```bash
+docker compose up -d
+```
 
 ## License
 
