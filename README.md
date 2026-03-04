@@ -223,238 +223,50 @@ npx drizzle-kit studio    # Open Drizzle Studio GUI
 
 ## Deployment
 
-This project uses SQLite (via better-sqlite3) which requires a persistent filesystem. It's designed for deployment as a long-running Node.js server, not serverless. A `Dockerfile` is included for easy deployment to any container platform.
-
-### Hosting Options
-
-| Platform | Cost | Persistent DB | Deploy Method |
-|----------|------|---------------|---------------|
-| **[Fly.io](https://fly.io)** | Free tier (3 shared VMs, 1GB volumes) | Persistent volumes | `fly launch` |
-| **[Railway](https://railway.app)** | $5/mo credit on hobby plan | Persistent disk | GitHub connect |
-| **[Render](https://render.com)** | Free tier (sleeps after 15min) | Persistent on $7/mo plan | GitHub connect |
-| **Any VPS** (DigitalOcean, Linode, Hetzner) | ~$4-6/mo | Full disk | Docker or direct |
-
----
-
-### Deploy to Fly.io (Recommended)
-
-Fly.io's free tier covers this project easily and provides persistent volumes for the SQLite database.
-
-#### 1. Install the Fly CLI
+A `Dockerfile` is included. The quickest way to deploy is with [Fly.io](https://fly.io):
 
 ```bash
-# macOS
+# Install the Fly CLI (macOS)
 brew install flyctl
 
-# or via install script
-curl -L https://fly.io/install.sh | sh
-```
-
-#### 2. Sign up & authenticate
-
-```bash
+# Sign up / log in
 fly auth signup
-# or if you already have an account:
-fly auth login
-```
 
-#### 3. Launch the app
-
-From the project root:
-
-```bash
+# Launch and deploy (auto-detects Dockerfile)
 fly launch
 ```
 
-When prompted:
-- Choose a region close to you
-- Say **yes** to setting up a Postgresql database? **No** (we use SQLite)
-- Say **yes** to deploy now? **No** (we need to set up a volume first)
+That's it. Your app will be live at `https://your-app-name.fly.dev`.
 
-#### 4. Create a persistent volume for SQLite
+Future deploys are just `fly deploy`.
 
-```bash
-# Create a 1GB volume (free tier includes 1GB)
-fly volumes create triviaworld_data --size 1 --region <your-region>
-```
+> **Note on data persistence:** By default the SQLite database lives inside the container and resets on each deploy. This is fine for demos and hobby use. If you need data to survive deploys, add a [persistent volume](https://fly.io/docs/volumes/):
+>
+> ```bash
+> fly volumes create triviaworld_data --size 1
+> ```
+>
+> Then add to your `fly.toml`:
+> ```toml
+> [mounts]
+>   source = "triviaworld_data"
+>   destination = "/data"
+> ```
+>
+> And set `JWT_SECRET` as a secret:
+> ```bash
+> fly secrets set JWT_SECRET=$(openssl rand -hex 32)
+> ```
 
-#### 5. Configure `fly.toml`
+### Other Hosting Options
 
-The `fly launch` command creates a `fly.toml`. Update it to mount the volume and set environment variables:
+The Dockerfile works on any container platform:
 
-```toml
-app = 'your-app-name'
-primary_region = 'your-region'
-
-[build]
-
-[env]
-  NODE_ENV = 'production'
-  PORT = '3000'
-
-[mounts]
-  source = 'triviaworld_data'
-  destination = '/data'
-
-[http_service]
-  internal_port = 3000
-  force_https = true
-  auto_stop_machines = 'stop'
-  auto_start_machines = true
-  min_machines_running = 0
-
-[[vm]]
-  size = 'shared-cpu-1x'
-  memory = '512mb'
-```
-
-#### 6. Set secrets
-
-```bash
-fly secrets set JWT_SECRET=$(openssl rand -hex 32)
-```
-
-#### 7. Update the database path for production
-
-Create a `.env.production` file:
-
-```env
-DATABASE_URL=/data/triviaworld.db
-```
-
-Then update `src/lib/db/index.ts` to use it (optional — the default `./triviaworld.db` works if you update the Dockerfile `CMD` to copy the DB to the volume on first run).
-
-#### 8. Deploy
-
-```bash
-fly deploy
-```
-
-Your app will be live at `https://your-app-name.fly.dev`.
-
-#### Subsequent deploys
-
-```bash
-fly deploy
-```
-
-That's it. Fly builds the Docker image and deploys it automatically.
-
----
-
-### Deploy to Railway
-
-#### 1. Push your code to GitHub
-
-(Already done — your repo is at `github.com/pausak/triviaworld-com`)
-
-#### 2. Connect to Railway
-
-1. Go to [railway.app](https://railway.app) and sign in with GitHub
-2. Click **New Project** → **Deploy from GitHub Repo**
-3. Select `triviaworld-com`
-4. Railway auto-detects the Dockerfile and starts building
-
-#### 3. Add environment variables
-
-In the Railway dashboard, go to your service's **Variables** tab:
-
-```
-JWT_SECRET=<generate-a-random-string>
-NODE_ENV=production
-PORT=3000
-```
-
-#### 4. Add a persistent volume
-
-1. In your service settings, go to **Volumes**
-2. Create a volume mounted at `/data`
-3. Update your database path to use `/data/triviaworld.db`
-
-#### 5. Generate a domain
-
-In **Settings → Networking**, click **Generate Domain** to get a public URL.
-
----
-
-### Deploy to Render
-
-#### 1. Connect your repo
-
-1. Go to [render.com](https://render.com) and sign in
-2. Click **New → Web Service**
-3. Connect your GitHub repo `triviaworld-com`
-
-#### 2. Configure the service
-
-- **Runtime:** Docker
-- **Instance Type:** Free (or Starter $7/mo for persistent disk)
-- **Environment Variables:**
-  ```
-  JWT_SECRET=<generate-a-random-string>
-  NODE_ENV=production
-  ```
-
-#### 3. Add a disk (Starter plan and above)
-
-1. Go to **Disks** in your service settings
-2. Add a disk mounted at `/data` with 1GB
-3. Update your database path to use `/data/triviaworld.db`
-
-> **Note:** The free tier has an ephemeral filesystem — the database resets on each deploy. Upgrade to the Starter plan ($7/mo) for persistent disks.
-
-#### 4. Deploy
-
-Render auto-deploys on every push to `main`.
-
----
-
-### Deploy with Docker (Any Server)
-
-If you have a VPS or any machine with Docker:
-
-```bash
-# Build the image
-docker build -t triviaworld .
-
-# Run with a persistent volume for the database
-docker run -d \
-  --name triviaworld \
-  -p 3000:3000 \
-  -v triviaworld_data:/app \
-  -e JWT_SECRET=$(openssl rand -hex 32) \
-  -e NODE_ENV=production \
-  triviaworld
-```
-
-The app will be available at `http://your-server-ip:3000`.
-
-To put it behind HTTPS, use a reverse proxy like [Caddy](https://caddyserver.com) (automatic HTTPS) or nginx with Let's Encrypt.
-
-#### Docker Compose
-
-Create a `docker-compose.yml`:
-
-```yaml
-services:
-  triviaworld:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - JWT_SECRET=change-this-to-a-secure-random-string
-    volumes:
-      - triviaworld_data:/app
-    restart: unless-stopped
-
-volumes:
-  triviaworld_data:
-```
-
-```bash
-docker compose up -d
-```
+| Platform | Cost | How to Deploy |
+|----------|------|---------------|
+| **[Railway](https://railway.app)** | $5/mo credit | Connect GitHub repo — auto-detects Dockerfile |
+| **[Render](https://render.com)** | Free tier | Connect GitHub repo — select Docker runtime |
+| **Any VPS** | ~$4-6/mo | `docker build -t triviaworld . && docker run -p 3000:3000 triviaworld` |
 
 ## License
 
