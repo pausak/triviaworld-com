@@ -6,28 +6,37 @@ import { desc, eq, gte, and } from "drizzle-orm";
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const mode = params.get("mode") || "quick";
-  const timeframe = params.get("timeframe") || "all"; // all | today | week | month
+  const timeframe = params.get("timeframe") || "all";
   const limit = Math.min(parseInt(params.get("limit") || "50", 10), 100);
 
   const conditions = [eq(leaderboardEntries.mode, mode)];
 
   if (timeframe !== "all") {
     const now = new Date();
-    let cutoff: Date;
+    let cutoffDate: string;
+
     switch (timeframe) {
-      case "today":
-        cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      case "today": {
+        // Use the date field (YYYY-MM-DD) for exact day match
+        cutoffDate = now.toISOString().split("T")[0];
         break;
-      case "week":
-        cutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      }
+      case "week": {
+        const d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        cutoffDate = d.toISOString().split("T")[0];
         break;
-      case "month":
-        cutoff = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      }
+      case "month": {
+        const d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        cutoffDate = d.toISOString().split("T")[0];
         break;
+      }
       default:
-        cutoff = new Date(0);
+        cutoffDate = "1970-01-01";
     }
-    conditions.push(gte(leaderboardEntries.createdAt, cutoff.toISOString()));
+
+    // Compare against the date field (YYYY-MM-DD) which sorts correctly as strings
+    conditions.push(gte(leaderboardEntries.date, cutoffDate));
   }
 
   const entries = await db

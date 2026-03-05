@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
     category: session.category,
     difficulty: session.difficulty,
     date: today,
+    createdAt: new Date().toISOString(),
   });
 
   // Update category stats
