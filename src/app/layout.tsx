@@ -58,7 +58,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen pb-16 sm:pb-0">
+      <body className="min-h-[100dvh] pb-16 sm:pb-0">
         <ThemeProvider>
           <AuthProvider>
             <Navbar />
