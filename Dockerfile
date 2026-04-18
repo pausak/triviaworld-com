@@ -12,9 +12,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Initialize the database
-RUN npx drizzle-kit push
-
 # Build Next.js
 RUN npm run build
 
@@ -33,10 +30,10 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-# Copy the database (will be overwritten by volume mount in production)
-COPY --from=builder /app/triviaworld.db ./triviaworld.db
+# Ensure /data directory exists and is writable for persistent SQLite storage
+RUN mkdir -p /data
 
-RUN chown -R nextjs:nodejs /app
+RUN chown -R nextjs:nodejs /app /data
 
 USER nextjs
 

@@ -1,17 +1,44 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CategoryPicker } from "./CategoryPicker";
 import { DifficultySelector } from "./DifficultySelector";
 import { useGameStore } from "@/stores/gameStore";
 import type { TriviaCategory, Difficulty, GameConfig } from "@/types/trivia";
 
 export function QuickPlaySetup() {
+  const searchParams = useSearchParams();
   const [category, setCategory] = useState<TriviaCategory | null>(null);
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [error, setError] = useState<string | null>(null);
   const startGame = useGameStore((s) => s.startGame);
   const status = useGameStore((s) => s.status);
+
+  useEffect(() => {
+    const catParam = searchParams.get("category");
+    if (!catParam || category) return;
+    const id = parseInt(catParam, 10);
+    if (Number.isNaN(id)) return;
+    fetch("/api/trivia/categories")
+      .then((r) => r.json())
+      .then((data: { categories?: TriviaCategory[] }) => {
+        const match = data.categories?.find((c) => c.id === id);
+        if (match) setCategory(match);
+      })
+      .catch(() => {});
+  }, [searchParams, category]);
+
+  useEffect(() => {
+    const diffParam = searchParams.get("difficulty");
+    if (
+      diffParam === "easy" ||
+      diffParam === "medium" ||
+      diffParam === "hard"
+    ) {
+      setDifficulty(diffParam);
+    }
+  }, [searchParams]);
 
   const handleStart = async () => {
     setError(null);

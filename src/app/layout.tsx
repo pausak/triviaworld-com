@@ -3,16 +3,41 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { MobileNav } from "@/components/MobileNav";
+import { Footer } from "@/components/Footer";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TriviaWorld — Test Your Knowledge",
+  title: {
+    default: "TriviaWorld - Test Your Knowledge",
+    template: "%s | TriviaWorld",
+  },
   description:
     "Play trivia games across multiple categories and difficulties. Compete on leaderboards, earn achievements, and track your progress.",
+  metadataBase: new URL("https://triviaworld.com"),
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
-    title: "TriviaWorld — Test Your Knowledge",
-    description: "Play trivia across dozens of categories. Compete on leaderboards and earn achievements.",
+    title: "TriviaWorld - Test Your Knowledge",
+    description:
+      "Play trivia across dozens of categories. Compete on leaderboards and earn achievements.",
     type: "website",
+    siteName: "TriviaWorld",
+    url: "https://triviaworld.com",
+  },
+  twitter: {
+    card: "summary",
+    title: "TriviaWorld - Test Your Knowledge",
+    description:
+      "Play trivia across dozens of categories. Compete on leaderboards and earn achievements.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -38,6 +63,7 @@ export default function RootLayout({
           <AuthProvider>
             <Navbar />
             <main>{children}</main>
+            <Footer />
             <MobileNav />
           </AuthProvider>
         </ThemeProvider>
