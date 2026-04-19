@@ -90,12 +90,20 @@ export default function ProfilePage() {
           </p>
         </div>
         {(!user || user.isAnonymous) && (
-          <Link
-            href="/auth"
-            className="px-4 py-2 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] text-sm font-medium"
-          >
-            Create Account
-          </Link>
+          <div className="flex gap-2 shrink-0">
+            <Link
+              href="/auth?mode=login"
+              className="px-3 py-2 rounded-lg border border-[var(--card-border)] bg-[var(--card)] text-sm font-medium hover:border-[var(--primary)] transition-colors"
+            >
+              Log In
+            </Link>
+            <Link
+              href="/auth?mode=signup"
+              className="px-3 py-2 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] text-sm font-medium hover:bg-[var(--primary-hover)] transition-colors"
+            >
+              Sign Up
+            </Link>
+          </div>
         )}
       </div>
 

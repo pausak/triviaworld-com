@@ -1,11 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useAuth } from "@/components/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function AuthPage() {
-  const [isLogin, setIsLogin] = useState(true);
+  return (
+    <Suspense fallback={<div className="max-w-md mx-auto px-4 py-12" />}>
+      <AuthForm />
+    </Suspense>
+  );
+}
+
+function AuthForm() {
+  const searchParams = useSearchParams();
+  const initialIsLogin = searchParams.get("mode") !== "signup";
+  const [isLogin, setIsLogin] = useState(initialIsLogin);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [nickname, setNickname] = useState("");
