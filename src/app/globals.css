@@ -81,6 +81,20 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
+/* Rotate-to-portrait overlay: browsers can't force orientation on a plain tab,
+   so on a phone-sized landscape viewport we cover the game and ask the user to
+   rotate. Hidden by default; shown only when landscape AND short (i.e. a phone,
+   not a tablet/desktop). Toggled purely via CSS to avoid hydration flicker. */
+.rotate-portrait-overlay {
+  display: none;
+}
+
+@media (orientation: landscape) and (max-height: 500px) {
+  .rotate-portrait-overlay {
+    display: flex;
+  }
+}
+
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;

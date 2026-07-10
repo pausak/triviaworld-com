@@ -35,7 +35,7 @@ export default function MarathonPage() {
 
   if (status === "playing" || status === "reviewing") {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto px-4 py-4 sm:py-8">
         <QuestionCard />
       </div>
     );
