@@ -23,7 +23,26 @@ function getDatabase() {
 }
 
 function ensureSchema(db: Database.Database) {
-  // Check if tables exist; if not, create them
+  // Newer tables added after the original 8 must be created idempotently and
+  // OUTSIDE the users-guard below — existing DBs (incl. prod) already have
+  // `users`, so the guarded block never re-runs for them.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS questions (
+      id TEXT PRIMARY KEY,
+      source TEXT NOT NULL DEFAULT 'the-trivia-api',
+      category TEXT NOT NULL,
+      difficulty TEXT NOT NULL,
+      our_difficulty TEXT,
+      type TEXT NOT NULL,
+      question_text TEXT NOT NULL,
+      correct_answer TEXT NOT NULL,
+      incorrect_answers TEXT NOT NULL,
+      is_niche INTEGER NOT NULL DEFAULT 0,
+      first_seen_at TEXT NOT NULL
+    );
+  `);
+
+  // Check if the original tables exist; if not, create them
   const tableExists = db.prepare(
     "SELECT name FROM sqlite_master WHERE type='table' AND name='users'"
   ).get();

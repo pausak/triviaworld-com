@@ -1,5 +1,5 @@
-import { nanoid } from "nanoid";
 import { categories } from "@/lib/categories";
+import { cacheQuestions } from "@/lib/db/questions";
 import type {
   TriviaCategory,
   TriviaQuestion,
@@ -59,7 +59,7 @@ function transformQuestion(raw: TriviaApiQuestion): QuestionWithAnswer {
   const allAnswers = shuffleArray([correctAnswer, ...incorrectAnswers]);
 
   return {
-    id: nanoid(),
+    id: raw.id, // The Trivia API's stable id — enables dedup + a growing bank
     category: prettifyCategory(raw.category),
     difficulty: raw.difficulty as Difficulty,
     type: "multiple",
@@ -104,13 +104,31 @@ export async function fetchQuestions(options: {
     throw new Error("Not enough questions available for this criteria");
   }
 
+  // Write-through: grow our own question bank from what we legitimately fetched.
+  // Best-effort — never let a cache write break question delivery.
+  try {
+    await cacheQuestions(
+      data.map((raw) => ({
+        id: raw.id,
+        source: "the-trivia-api",
+        category: raw.category,
+        difficulty: raw.difficulty,
+        type: raw.type,
+        questionText: raw.question.text,
+        correctAnswer: raw.correctAnswer,
+        incorrectAnswers: raw.incorrectAnswers,
+        isNiche: raw.isNiche,
+      }))
+    );
+  } catch {
+    // swallow — caching is non-critical
+  }
+
   return data.map(transformQuestion);
 }
 
-// The in-game category picker only offers the 10 topics The Trivia API actually
-// backs, so every pick returns on-topic questions. The richer 24-category set in
-// src/lib/categories.ts still powers the /trivia SEO pages; their deep links map
-// down to one of these 10 via OPENTDB_TO_TRIVIA_API.
+// The in-game category picker offers the 10 topics The Trivia API backs
+// (derived from src/lib/categories.ts), so every pick returns on-topic questions.
 export async function fetchCategories(): Promise<TriviaCategory[]> {
   return PLAYABLE_CATEGORIES;
 }
