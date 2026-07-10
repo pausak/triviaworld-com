@@ -78,9 +78,13 @@ export function QuestionCard() {
   };
 
   return (
-    <div className="animate-fade-in">
+    // On mobile the game view is sized to the space between the top nav and the
+    // bottom mobile nav (100dvh - 9.5rem) and laid out as a flex column so the
+    // question, answers, and Next button all fit without page scroll. Desktop
+    // (sm:) keeps the natural block flow.
+    <div className="animate-fade-in flex h-[calc(100dvh-9.5rem)] flex-col sm:block sm:h-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex shrink-0 items-center justify-between mb-3 sm:mb-6">
         <div className="flex items-center gap-3">
           <span className="text-sm text-[var(--muted)]">
             {currentIndex + 1} / {questions.length}
@@ -105,55 +109,64 @@ export function QuestionCard() {
         {status === "playing" && <Timer />}
       </div>
 
-      {/* Category */}
-      <p className="text-xs text-[var(--muted)] mb-2">{question.category}</p>
+      {/* Scrollable middle (insurance only) — centers content when it fits */}
+      <div className="min-h-0 flex-1 overflow-y-auto sm:overflow-visible">
+        <div className="flex min-h-full flex-col justify-center sm:block sm:min-h-0">
+          {/* Category */}
+          <p className="text-xs text-[var(--muted)] mb-1 sm:mb-2">
+            {question.category}
+          </p>
 
-      {/* Question */}
-      <h2 className="text-xl font-semibold mb-6 leading-relaxed">
-        {question.question}
-      </h2>
+          {/* Question */}
+          <h2 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-6 leading-snug sm:leading-relaxed">
+            {question.question}
+          </h2>
 
-      {/* Answers */}
-      <div className="grid gap-3">
-        {question.answers.map((answer, i) => (
-          <AnswerButton
-            key={`${question.id}-${i}`}
-            answer={answer}
-            index={i}
-            state={answerResult ? getAnswerState(answer) : getTimeoutState(answer)}
-            disabled={submitting || isReviewing}
-            onClick={() => handleSelect(answer)}
-          />
-        ))}
-      </div>
-
-      {/* Review feedback */}
-      {isReviewing && effectiveResult && (
-        <div className="mt-6 space-y-4 animate-fade-in">
-          <div
-            className={`text-center text-lg font-semibold ${
-              effectiveResult.isCorrect
-                ? "text-[var(--success)]"
-                : "text-[var(--danger)]"
-            }`}
-          >
-            {effectiveResult.isCorrect
-              ? "Correct!"
-              : selectedAnswer
-              ? "Incorrect!"
-              : "Time's up!"}
+          {/* Answers */}
+          <div className="grid gap-2 sm:gap-3">
+            {question.answers.map((answer, i) => (
+              <AnswerButton
+                key={`${question.id}-${i}`}
+                answer={answer}
+                index={i}
+                state={
+                  answerResult ? getAnswerState(answer) : getTimeoutState(answer)
+                }
+                disabled={submitting || isReviewing}
+                onClick={() => handleSelect(answer)}
+              />
+            ))}
           </div>
-          <button
-            onClick={handleNext}
-            className="w-full py-3 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] font-medium hover:bg-[var(--primary-hover)] transition-colors"
-          >
-            {currentIndex + 1 >= questions.length ||
-            (config.mode === "survival" && lives <= 0)
-              ? "See Results"
-              : "Next Question"}
-          </button>
+
+          {/* Review feedback */}
+          {isReviewing && effectiveResult && (
+            <div className="mt-3 sm:mt-6 space-y-2 sm:space-y-4 animate-fade-in">
+              <div
+                className={`text-center text-lg font-semibold ${
+                  effectiveResult.isCorrect
+                    ? "text-[var(--success)]"
+                    : "text-[var(--danger)]"
+                }`}
+              >
+                {effectiveResult.isCorrect
+                  ? "Correct!"
+                  : selectedAnswer
+                  ? "Incorrect!"
+                  : "Time's up!"}
+              </div>
+              <button
+                onClick={handleNext}
+                className="w-full py-3 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] font-medium hover:bg-[var(--primary-hover)] transition-colors"
+              >
+                {currentIndex + 1 >= questions.length ||
+                (config.mode === "survival" && lives <= 0)
+                  ? "See Results"
+                  : "Next Question"}
+              </button>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

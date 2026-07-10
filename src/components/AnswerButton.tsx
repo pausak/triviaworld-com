@@ -33,10 +33,10 @@ export function AnswerButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`flex items-center gap-3 p-4 rounded-lg border-2 text-left transition-all ${stateClasses[state]}`}
+      className={`flex items-center gap-3 p-2.5 sm:p-4 rounded-lg border-2 text-left transition-all ${stateClasses[state]}`}
     >
       <span
-        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+        className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-sm font-bold ${
           state === "correct"
             ? "bg-green-500 text-white"
             : state === "incorrect"

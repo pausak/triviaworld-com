@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const columns = [
   {
@@ -39,8 +42,17 @@ const columns = [
 ];
 
 export function Footer() {
+  const pathname = usePathname();
+  // Keep the timed game view scroll-free on phones: the long footer would push
+  // the page past one screen. Hidden on mobile /play routes; shown on desktop.
+  const hideOnMobile = pathname?.startsWith("/play") ?? false;
+
   return (
-    <footer className="mt-16 border-t border-[var(--card-border)] bg-[var(--card)]/30">
+    <footer
+      className={`mt-16 border-t border-[var(--card-border)] bg-[var(--card)]/30 ${
+        hideOnMobile ? "hidden sm:block" : ""
+      }`}
+    >
       <div className="max-w-5xl mx-auto px-4 py-10">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 mb-8">
           {columns.map((col) => (
