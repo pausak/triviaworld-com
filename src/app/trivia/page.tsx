@@ -5,7 +5,7 @@ import { categories } from "@/lib/categories";
 export const metadata: Metadata = {
   title: "Trivia Categories",
   description:
-    "Browse all 24 trivia categories on TriviaWorld &mdash; from history and science to video games, music, and anime. Pick your favorite and start playing.",
+    "Browse all trivia categories on TriviaWorld &mdash; from history and science to film & TV, music, and food & drink. Pick your favorite and start playing.",
   alternates: { canonical: "/trivia" },
 };
 

@@ -1,4 +1,5 @@
 import { nanoid } from "nanoid";
+import { categories } from "@/lib/categories";
 import type {
   TriviaCategory,
   TriviaQuestion,
@@ -11,55 +12,17 @@ import type {
 // is why we switched: even OpenTDB's "easy" questions skewed obscure.
 const TRIVIA_API_BASE = "https://the-trivia-api.com/v2";
 
-// The Trivia API exposes 10 top-level categories (string slugs), while the app
-// is built around OpenTDB's numeric category IDs (see src/lib/categories.ts).
-// This maps each OpenTDB id the app still uses onto the closest Trivia API slug.
-// Several app categories have no direct equivalent and collapse onto a shared
-// pool — tune these mappings freely; they are the single source of truth.
-const OPENTDB_TO_TRIVIA_API: Record<number, string> = {
-  9: "general_knowledge", // General Knowledge
-  10: "arts_and_literature", // Books
-  11: "film_and_tv", // Film
-  12: "music", // Music
-  13: "arts_and_literature", // Musicals & Theatre
-  14: "film_and_tv", // Television
-  15: "general_knowledge", // Video Games (no gaming category on Trivia API)
-  16: "sport_and_leisure", // Board Games (sport_and_leisure covers games)
-  17: "science", // Science & Nature
-  18: "science", // Computers
-  19: "science", // Mathematics
-  20: "society_and_culture", // Mythology
-  21: "sport_and_leisure", // Sports
-  22: "geography", // Geography
-  23: "history", // History
-  24: "society_and_culture", // Politics
-  25: "arts_and_literature", // Art
-  26: "film_and_tv", // Celebrities
-  27: "science", // Animals
-  28: "general_knowledge", // Vehicles
-  29: "arts_and_literature", // Comics
-  30: "science", // Gadgets
-  31: "film_and_tv", // Anime & Manga
-  32: "film_and_tv", // Cartoons & Animations
-  33: "food_and_drink", // Food & Drink (native to The Trivia API; no OpenTDB equivalent)
-};
+// src/lib/categories.ts is the single source of truth for the 10 categories.
+// Derive the numeric-id -> Trivia API slug map and the picker list from it.
+const CATEGORY_ID_TO_API_SLUG: Record<number, string> = Object.fromEntries(
+  categories.map((c) => [c.openTdbId, c.triviaApiCategory])
+);
 
-// The 10 categories The Trivia API actually backs, shown in the in-game picker.
-// `id` reuses a representative OpenTDB id so existing /trivia SEO deep links and
-// the OPENTDB_TO_TRIVIA_API map keep resolving; 33 is a synthetic id for the
-// Food & Drink topic, which has no OpenTDB counterpart.
-const PLAYABLE_CATEGORIES: TriviaCategory[] = [
-  { id: 9, name: "General Knowledge" },
-  { id: 23, name: "History" },
-  { id: 17, name: "Science & Nature" },
-  { id: 22, name: "Geography" },
-  { id: 11, name: "Film & TV" },
-  { id: 12, name: "Music" },
-  { id: 21, name: "Sport & Leisure" },
-  { id: 10, name: "Arts & Literature" },
-  { id: 24, name: "Society & Culture" },
-  { id: 33, name: "Food & Drink" },
-];
+// The categories shown in the in-game picker (all 10 are backed by the API).
+const PLAYABLE_CATEGORIES: TriviaCategory[] = categories.map((c) => ({
+  id: c.openTdbId,
+  name: c.shortName,
+}));
 
 interface TriviaApiQuestion {
   id: string;
@@ -119,7 +82,7 @@ export async function fetchQuestions(options: {
   });
 
   if (options.category) {
-    const slug = OPENTDB_TO_TRIVIA_API[options.category];
+    const slug = CATEGORY_ID_TO_API_SLUG[options.category];
     if (slug) params.set("categories", slug);
   }
   if (options.difficulty) params.set("difficulties", options.difficulty);

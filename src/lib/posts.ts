@@ -331,7 +331,7 @@ Pick a mode, play it for a week, and watch where your natural score range settle
     author: "The TriviaWorld Team",
     tags: ["film", "trivia-strategy"],
     content: `
-There are roughly half a million feature films in existence. Trivia writers could theoretically draw from any of them, but in practice, [Film](/trivia/film) questions follow a small set of recurring shapes. Learn the shapes and you'll stop feeling like you need to have seen every movie ever made.
+There are roughly half a million feature films in existence. Trivia writers could theoretically draw from any of them, but in practice, [Film](/trivia/film-and-tv) questions follow a small set of recurring shapes. Learn the shapes and you'll stop feeling like you need to have seen every movie ever made.
 
 ## Pattern 1: Best Picture streaks and droughts
 
@@ -396,7 +396,7 @@ Don't try to watch more movies &mdash; that's the slow path. Instead:
 - Know the ten or so most-misquoted movie lines
 - Have a one-sentence handle on every Coen, Nolan, Tarantino, Spielberg, and Kubrick film
 
-Test yourself with [Film trivia](/trivia/film) in [Quick Play](/play). If you run into a question and realize you've never heard of the movie in question, that's a signal the film is famous enough that it's worth a five-minute read later. Trivia isn't about knowing everything; it's about pattern-matching fast on the things that come up.
+Test yourself with [Film trivia](/trivia/film-and-tv) in [Quick Play](/play). If you run into a question and realize you've never heard of the movie in question, that's a signal the film is famous enough that it's worth a five-minute read later. Trivia isn't about knowing everything; it's about pattern-matching fast on the things that come up.
 `,
   },
 ];

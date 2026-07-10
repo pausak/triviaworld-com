@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "About TriviaWorld",
   description:
-    "TriviaWorld is a free trivia game with 24 categories, four game modes, global leaderboards, and achievements. Learn what makes it different.",
+    "TriviaWorld is a free trivia game with 10 categories, four game modes, global leaderboards, and achievements. Learn what makes it different.",
   alternates: { canonical: "/about" },
 };
 
@@ -14,7 +14,7 @@ export default function AboutPage() {
       <header className="mb-10">
         <h1 className="text-4xl font-bold tracking-tight mb-3">About TriviaWorld</h1>
         <p className="text-lg text-[var(--muted)]">
-          A fast, free trivia game with four modes, 24 categories, and
+          A fast, free trivia game with four modes, 10 categories, and
           server-validated scoring. No ads, no paywalls.
         </p>
       </header>

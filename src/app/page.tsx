@@ -58,7 +58,7 @@ const homepageFaqs = [
   },
   {
     q: "How many trivia categories are there?",
-    a: `${categories.length} categories ranging from history and science to anime, video games, and music.`,
+    a: `${categories.length} categories ranging from history and science to film & TV, music, and food & drink.`,
   },
   {
     q: "Do I need to sign up to play?",
@@ -86,8 +86,7 @@ export default function HomePage() {
     "@type": "WebSite",
     name: "TriviaWorld",
     url: "https://triviaworld.com",
-    description:
-      "Free online trivia games across 24 categories with leaderboards, achievements, and daily challenges.",
+    description: `Free online trivia games across ${categories.length} categories with leaderboards, achievements, and daily challenges.`,
   };
 
   return (
