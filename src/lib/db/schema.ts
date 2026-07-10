@@ -96,6 +96,25 @@ export const userAchievements = sqliteTable("user_achievements", {
   unlockedAt: text("unlocked_at").notNull().$defaultFn(() => new Date().toISOString()),
 });
 
+// Our own growing question bank, filled write-through from The Trivia API as
+// users play (dedupe by the API's stable question id). Groundwork for serving
+// questions from our own DB later; see CLAUDE.md.
+export const questions = sqliteTable("questions", {
+  id: text("id").primaryKey(), // The Trivia API's stable question id (dedupe key)
+  source: text("source").notNull().default("the-trivia-api"),
+  category: text("category").notNull(), // The Trivia API category slug
+  difficulty: text("difficulty").notNull(),
+  ourDifficulty: text("our_difficulty"), // optional override for re-rating
+  type: text("type").notNull(),
+  questionText: text("question_text").notNull(),
+  correctAnswer: text("correct_answer").notNull(),
+  incorrectAnswers: text("incorrect_answers", { mode: "json" })
+    .notNull()
+    .$type<string[]>(),
+  isNiche: integer("is_niche", { mode: "boolean" }).notNull().default(false),
+  firstSeenAt: text("first_seen_at").notNull().$defaultFn(() => new Date().toISOString()),
+});
+
 export const categoryStats = sqliteTable("category_stats", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id),
