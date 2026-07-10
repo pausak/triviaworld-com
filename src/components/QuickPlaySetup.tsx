@@ -5,12 +5,13 @@ import { useSearchParams } from "next/navigation";
 import { CategoryPicker } from "./CategoryPicker";
 import { DifficultySelector } from "./DifficultySelector";
 import { useGameStore } from "@/stores/gameStore";
+import { categories as curatedCategories } from "@/lib/categories";
 import type { TriviaCategory, Difficulty, GameConfig } from "@/types/trivia";
 
 export function QuickPlaySetup() {
   const searchParams = useSearchParams();
   const [category, setCategory] = useState<TriviaCategory | null>(null);
-  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
+  const [difficulty, setDifficulty] = useState<Difficulty | null>("easy");
   const [error, setError] = useState<string | null>(null);
   const startGame = useGameStore((s) => s.startGame);
   const status = useGameStore((s) => s.status);
@@ -20,13 +21,11 @@ export function QuickPlaySetup() {
     if (!catParam || category) return;
     const id = parseInt(catParam, 10);
     if (Number.isNaN(id)) return;
-    fetch("/api/trivia/categories")
-      .then((r) => r.json())
-      .then((data: { categories?: TriviaCategory[] }) => {
-        const match = data.categories?.find((c) => c.id === id);
-        if (match) setCategory(match);
-      })
-      .catch(() => {});
+    // Resolve deep links from the /trivia SEO pages (all 24 curated categories),
+    // not just the 10 in the picker, so a collapsed category still plays its
+    // mapped question pool with a sensible name.
+    const match = curatedCategories.find((c) => c.openTdbId === id);
+    if (match) setCategory({ id: match.openTdbId, name: match.shortName });
   }, [searchParams, category]);
 
   useEffect(() => {

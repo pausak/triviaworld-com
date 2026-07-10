@@ -99,14 +99,14 @@ export default function PrivacyPage() {
 
       <Section title="Third-party services">
         <p>
-          Trivia questions are fetched from the{" "}
+          Trivia questions are fetched from{" "}
           <a
-            href="https://opentdb.com"
+            href="https://the-trivia-api.com"
             target="_blank"
             rel="noopener noreferrer"
             className="text-[var(--primary)] hover:underline"
           >
-            Open Trivia Database
+            The Trivia API
           </a>
           . Requests to their API go directly from our servers, not from your
           browser.

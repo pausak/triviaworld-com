@@ -72,14 +72,14 @@ export function Footer() {
             </span>
           </div>
           <p className="text-xs text-[var(--muted)]">
-            Questions from the{" "}
+            Questions from{" "}
             <a
-              href="https://opentdb.com"
+              href="https://the-trivia-api.com"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-[var(--primary)]"
             >
-              Open Trivia Database
+              The Trivia API
             </a>
           </p>
         </div>

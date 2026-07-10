@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchQuestions, sanitizeForClient } from "@/lib/opentdb";
+import { fetchQuestions, sanitizeForClient } from "@/lib/triviaApi";
 import type { Difficulty } from "@/types/trivia";
 
 // In-memory question store keyed by session — server validates answers

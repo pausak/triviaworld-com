@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { dailyChallenges } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { fetchQuestions, sanitizeForClient } from "@/lib/opentdb";
+import { fetchQuestions, sanitizeForClient } from "@/lib/triviaApi";
 import { nanoid } from "nanoid";
 import type { QuestionWithAnswer } from "@/types/trivia";
 
@@ -60,10 +60,10 @@ export async function GET(request: NextRequest) {
   if (dailyEntry) {
     questions = dailyEntry.questionsJson as unknown as QuestionWithAnswer[];
   } else {
-    // Fetch new daily questions (mixed categories, medium difficulty)
+    // Fetch new daily questions (mixed categories, easy difficulty)
     questions = await fetchQuestions({
       amount: 10,
-      difficulty: "medium",
+      difficulty: "easy",
     });
 
     // Cache in DB

@@ -221,14 +221,14 @@ export default function HomePage() {
 
       <section className="text-center mb-4">
         <p className="text-sm text-[var(--muted)]">
-          Powered by the{" "}
+          Powered by{" "}
           <a
-            href="https://opentdb.com"
+            href="https://the-trivia-api.com"
             target="_blank"
             rel="noopener noreferrer"
             className="text-[var(--primary)] hover:underline"
           >
-            Open Trivia Database
+            The Trivia API
           </a>
         </p>
       </section>
