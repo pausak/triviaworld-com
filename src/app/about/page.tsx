@@ -66,14 +66,14 @@ export default function AboutPage() {
       <section className="mb-10">
         <h2 className="text-2xl font-bold mb-4">Credits</h2>
         <p className="text-[var(--secondary-foreground)] leading-relaxed">
-          Questions are sourced from the{" "}
+          Questions are sourced from{" "}
           <a
-            href="https://opentdb.com"
+            href="https://the-trivia-api.com"
             target="_blank"
             rel="noopener noreferrer"
             className="text-[var(--primary)] hover:underline"
           >
-            Open Trivia Database
+            The Trivia API
           </a>
           , a community-maintained trivia API. We&rsquo;re grateful for their
           work. Site built with Next.js, TypeScript, and Tailwind.

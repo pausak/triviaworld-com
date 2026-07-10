@@ -11,7 +11,7 @@ export default function SurvivalPage() {
   const status = useGameStore((s) => s.status);
   const startGame = useGameStore((s) => s.startGame);
   const lives = useGameStore((s) => s.lives);
-  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
+  const [difficulty, setDifficulty] = useState<Difficulty | null>("easy");
   const [error, setError] = useState<string | null>(null);
 
   const handleStart = async () => {

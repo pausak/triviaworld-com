@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchCategories } from "@/lib/opentdb";
+import { fetchCategories } from "@/lib/triviaApi";
 
 export async function GET() {
   try {

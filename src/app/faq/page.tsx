@@ -23,7 +23,7 @@ const faqs = [
   },
   {
     q: "Why am I seeing the same question twice?",
-    a: "Questions come from the Open Trivia Database and are served randomly. If you play enough you'll eventually see repeats &mdash; we don't filter them globally across sessions.",
+    a: "Questions come from The Trivia API and are served randomly. If you play enough you'll eventually see repeats &mdash; we don't filter them globally across sessions.",
   },
   {
     q: "How does the Daily Challenge work?",
@@ -47,11 +47,11 @@ const faqs = [
   },
   {
     q: "Why are some categories harder than others?",
-    a: "Question difficulty is set by the Open Trivia Database contributors. Some topics simply attract harder questions on average. Pick 'Easy' if you want a softer on-ramp.",
+    a: "Question difficulty is set by The Trivia API contributors, and games now default to Easy. Some topics simply attract harder questions on average &mdash; switch the difficulty selector to Medium or Hard if you want more of a challenge.",
   },
   {
     q: "Do you have an API?",
-    a: "Not yet. Our backend uses the Open Trivia Database API &mdash; you can query it directly at opentdb.com.",
+    a: "Not yet. Our backend uses The Trivia API &mdash; you can query it directly at the-trivia-api.com.",
   },
   {
     q: "Who runs TriviaWorld?",

@@ -24,6 +24,7 @@ export default function MarathonPage() {
         mode: "marathon",
         category: category.id,
         categoryName: category.name,
+        difficulty: "easy",
         questionCount: 50, // max from API
         timePerQuestion: 30,
       });

@@ -54,20 +54,6 @@ export interface GameResult {
   finishedAt: Date;
 }
 
-export interface OpenTDBResponse {
-  response_code: number;
-  results: OpenTDBQuestion[];
-}
-
-export interface OpenTDBQuestion {
-  type: string;
-  difficulty: string;
-  category: string;
-  question: string;
-  correct_answer: string;
-  incorrect_answers: string[];
-}
-
 export interface LeaderboardEntry {
   id: string;
   userId: string;

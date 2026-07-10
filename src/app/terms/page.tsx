@@ -85,14 +85,14 @@ export default function TermsPage() {
             The TriviaWorld name, branding, and site code are owned by us.
           </li>
           <li>
-            Trivia questions are provided by the{" "}
+            Trivia questions are provided by{" "}
             <a
-              href="https://opentdb.com"
+              href="https://the-trivia-api.com"
               target="_blank"
               rel="noopener noreferrer"
               className="text-[var(--primary)] hover:underline"
             >
-              Open Trivia Database
+              The Trivia API
             </a>{" "}
             under its own license. We do not claim ownership of the question
             content.
