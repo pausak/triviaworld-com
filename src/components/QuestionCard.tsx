@@ -111,7 +111,7 @@ export function QuestionCard() {
 
       {/* Scrollable middle (insurance only) — centers content when it fits */}
       <div className="min-h-0 flex-1 overflow-y-auto sm:overflow-visible">
-        <div className="flex min-h-full flex-col justify-center sm:block sm:min-h-0">
+        <div className="flex min-h-full flex-col justify-start sm:block sm:min-h-0">
           {/* Category */}
           <p className="text-xs text-[var(--muted)] mb-1 sm:mb-2">
             {question.category}
