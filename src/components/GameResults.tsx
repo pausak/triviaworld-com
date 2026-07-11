@@ -93,7 +93,36 @@ export function GameResults() {
         </div>
       </div>
 
-      {/* Answer breakdown */}
+      {/* Actions — kept above the breakdown so Play Again is reachable
+          without scrolling, even for long (marathon) games. */}
+      <div className="flex gap-3">
+        <button
+          onClick={resetGame}
+          className="flex-1 py-3 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] font-medium hover:bg-[var(--primary-hover)] transition-colors"
+        >
+          Play Again
+        </button>
+        <button
+          onClick={async () => {
+            const success = await shareResults(result);
+            if (success) setShared(true);
+            setTimeout(() => setShared(false), 2000);
+          }}
+          className="flex-1 py-3 rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] font-medium hover:opacity-80 transition-opacity"
+        >
+          {shared ? "Copied!" : "Share Results"}
+        </button>
+      </div>
+      <div className="text-center">
+        <Link
+          href="/leaderboard"
+          className="text-sm text-[var(--primary)] hover:underline"
+        >
+          View Leaderboard
+        </Link>
+      </div>
+
+      {/* Answer breakdown — secondary detail, so it lives at the bottom */}
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-[var(--muted)]">
           Question Breakdown
@@ -123,34 +152,6 @@ export function GameResults() {
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-3">
-        <button
-          onClick={resetGame}
-          className="flex-1 py-3 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] font-medium hover:bg-[var(--primary-hover)] transition-colors"
-        >
-          Play Again
-        </button>
-        <button
-          onClick={async () => {
-            const success = await shareResults(result);
-            if (success) setShared(true);
-            setTimeout(() => setShared(false), 2000);
-          }}
-          className="flex-1 py-3 rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] font-medium hover:opacity-80 transition-opacity"
-        >
-          {shared ? "Copied!" : "Share Results"}
-        </button>
-      </div>
-      <div className="text-center">
-        <Link
-          href="/leaderboard"
-          className="text-sm text-[var(--primary)] hover:underline"
-        >
-          View Leaderboard
-        </Link>
       </div>
     </div>
   );
