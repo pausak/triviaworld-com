@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGameStore } from "@/stores/gameStore";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import { QuestionCard } from "@/components/QuestionCard";
 import { GameResults } from "@/components/GameResults";
+import { categories as curatedCategories } from "@/lib/categories";
 import type { TriviaCategory } from "@/types/trivia";
 
 export default function MarathonPage() {
@@ -12,6 +13,17 @@ export default function MarathonPage() {
   const startGame = useGameStore((s) => s.startGame);
   const [category, setCategory] = useState<TriviaCategory | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Honor deep links from the /trivia SEO pages, e.g. /play/marathon?category=33.
+  // Without this the category is never preselected and Start stays disabled.
+  useEffect(() => {
+    const param = new URLSearchParams(window.location.search).get("category");
+    if (!param) return;
+    const id = parseInt(param, 10);
+    if (Number.isNaN(id)) return;
+    const match = curatedCategories.find((c) => c.openTdbId === id);
+    if (match) setCategory({ id: match.openTdbId, name: match.shortName });
+  }, []);
 
   const handleStart = async () => {
     if (!category) {
