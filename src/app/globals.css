@@ -81,6 +81,16 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
+/* Auto-advance countdown bar: drains from full to empty over the pause before
+   the next question. Duration is set inline per question (shorter when correct). */
+@keyframes drain {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+.autoadvance-bar {
+  animation: drain linear forwards;
+}
+
 /* Rotate-to-portrait overlay: browsers can't force orientation on a plain tab,
    so on a phone-sized landscape viewport we cover the game and ask the user to
    rotate. Hidden by default; shown only when landscape AND short (i.e. a phone,

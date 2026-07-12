@@ -4,7 +4,12 @@ import { useGameStore } from "@/stores/gameStore";
 import { useSound } from "@/hooks/useSound";
 import { Timer } from "./Timer";
 import { AnswerButton } from "./AnswerButton";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+// How long to linger on the answer reveal before auto-advancing. Wrong/timed-out
+// answers get longer so the correct answer can register.
+const CORRECT_DELAY = 1200;
+const WRONG_DELAY = 2500;
 
 export function QuestionCard() {
   const questions = useGameStore((s) => s.questions);
@@ -23,6 +28,39 @@ export function QuestionCard() {
     correctAnswer: string;
   } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const advancedRef = useRef(false);
+
+  // Move to the next question (or results). Guarded so the auto-advance timer,
+  // a tap, and a keypress can't fire it more than once per question.
+  const advance = useCallback(() => {
+    if (advancedRef.current) return;
+    advancedRef.current = true;
+    if (advanceTimer.current) clearTimeout(advanceTimer.current);
+    setSelectedAnswer(null);
+    setAnswerResult(null);
+    setSubmitting(false);
+    nextQuestion();
+  }, [nextQuestion]);
+
+  // Auto-advance once an answer has been revealed. Tap-anywhere and Enter/Space/→
+  // let the player skip the wait.
+  useEffect(() => {
+    if (status !== "reviewing") return;
+    advancedRef.current = false;
+    const isCorrect = answerResult?.isCorrect ?? false;
+    const delay = isCorrect ? CORRECT_DELAY : WRONG_DELAY;
+    advanceTimer.current = setTimeout(advance, delay);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowRight") advance();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      if (advanceTimer.current) clearTimeout(advanceTimer.current);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [status, currentIndex, answerResult, advance]);
 
   const question = questions[currentIndex];
   if (!question || !config) return null;
@@ -49,13 +87,6 @@ export function QuestionCard() {
     }
   };
 
-  const handleNext = () => {
-    setSelectedAnswer(null);
-    setAnswerResult(null);
-    setSubmitting(false);
-    nextQuestion();
-  };
-
   const getAnswerState = (answer: string) => {
     if (!isReviewing || !answerResult) return "default";
     if (answer === answerResult.correctAnswer) return "correct";
@@ -70,6 +101,7 @@ export function QuestionCard() {
       : null;
 
   const effectiveResult = answerResult || timeoutResult;
+  const advanceDelay = effectiveResult?.isCorrect ? CORRECT_DELAY : WRONG_DELAY;
 
   const getTimeoutState = (answer: string) => {
     if (!isReviewing || !timeoutResult) return "default";
@@ -80,9 +112,14 @@ export function QuestionCard() {
   return (
     // On mobile the game view is sized to the space between the top nav and the
     // bottom mobile nav (100dvh - 9.5rem) and laid out as a flex column so the
-    // question, answers, and Next button all fit without page scroll. Desktop
-    // (sm:) keeps the natural block flow.
-    <div className="animate-fade-in flex h-[calc(100dvh-9.5rem)] flex-col sm:block sm:h-auto">
+    // question, answers, and reveal all fit without page scroll. Desktop (sm:)
+    // keeps the natural block flow. During review, tapping anywhere advances.
+    <div
+      className={`animate-fade-in flex h-[calc(100dvh-9.5rem)] flex-col sm:block sm:h-auto ${
+        isReviewing ? "cursor-pointer" : ""
+      }`}
+      onClick={isReviewing ? advance : undefined}
+    >
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between mb-3 sm:mb-6">
         <div className="flex items-center gap-3">
@@ -109,7 +146,7 @@ export function QuestionCard() {
         {status === "playing" && <Timer />}
       </div>
 
-      {/* Scrollable middle (insurance only) — centers content when it fits */}
+      {/* Scrollable middle (insurance only) — top-aligned content */}
       <div className="min-h-0 flex-1 overflow-y-auto sm:overflow-visible">
         <div className="flex min-h-full flex-col justify-start sm:block sm:min-h-0">
           {/* Category */}
@@ -122,8 +159,8 @@ export function QuestionCard() {
             {question.question}
           </h2>
 
-          {/* Answers */}
-          <div className="grid gap-2 sm:gap-3">
+          {/* Answers — non-interactive during review so a tap anywhere advances */}
+          <div className={`grid gap-2 sm:gap-3 ${isReviewing ? "pointer-events-none" : ""}`}>
             {question.answers.map((answer, i) => (
               <AnswerButton
                 key={`${question.id}-${i}`}
@@ -138,9 +175,9 @@ export function QuestionCard() {
             ))}
           </div>
 
-          {/* Review feedback */}
+          {/* Review feedback + auto-advance countdown */}
           {isReviewing && effectiveResult && (
-            <div className="mt-3 sm:mt-6 space-y-2 sm:space-y-4 animate-fade-in">
+            <div className="mt-3 sm:mt-6 space-y-2 sm:space-y-3 animate-fade-in">
               <div
                 className={`text-center text-lg font-semibold ${
                   effectiveResult.isCorrect
@@ -154,15 +191,19 @@ export function QuestionCard() {
                   ? "Incorrect!"
                   : "Time's up!"}
               </div>
-              <button
-                onClick={handleNext}
-                className="w-full py-3 rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] font-medium hover:bg-[var(--primary-hover)] transition-colors"
-              >
+              <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--secondary)]">
+                <div
+                  key={currentIndex}
+                  className="autoadvance-bar h-full bg-[var(--primary)]"
+                  style={{ animationDuration: `${advanceDelay}ms` }}
+                />
+              </div>
+              <p className="text-center text-xs text-[var(--muted)]">
                 {currentIndex + 1 >= questions.length ||
                 (config.mode === "survival" && lives <= 0)
-                  ? "See Results"
-                  : "Next Question"}
-              </button>
+                  ? "Tap for results"
+                  : "Tap to continue"}
+              </p>
             </div>
           )}
         </div>
