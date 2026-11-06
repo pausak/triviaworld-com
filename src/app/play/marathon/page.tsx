@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { GAME_RULES } from "@/lib/gameRules";
 import { useGameStore } from "@/stores/gameStore";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import { QuestionCard } from "@/components/QuestionCard";
@@ -33,8 +34,8 @@ export default function MarathonPage() {
         category: category.id,
         categoryName: category.name,
         difficulty: "easy",
-        questionCount: 50, // max from API
-        timePerQuestion: 30,
+        questionCount: GAME_RULES.marathon.questionCount,
+        timePerQuestion: GAME_RULES.marathon.timePerQuestion,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to start");

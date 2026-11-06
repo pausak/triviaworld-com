@@ -1,9 +1,18 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "triviaworld-dev-secret-change-in-production"
-);
+const DEV_SECRET = "triviaworld-dev-secret-change-in-production";
+
+// Read when used, not on import: next build loads this file with no secret set.
+// In production a missing secret stops sign-in rather than signing with a value
+// anyone can read in this public repository.
+function jwtSecret(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === "production" && (!secret || secret === DEV_SECRET)) {
+    throw new Error("JWT_SECRET must be set in production");
+  }
+  return new TextEncoder().encode(secret || DEV_SECRET);
+}
 
 const COOKIE_NAME = "tw_session";
 
@@ -12,14 +21,14 @@ export async function createToken(userId: string): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30d")
     .setIssuedAt()
-    .sign(JWT_SECRET);
+    .sign(jwtSecret());
 }
 
 export async function verifyToken(
   token: string
 ): Promise<{ userId: string } | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET);
+    const { payload } = await jwtVerify(token, jwtSecret());
     return { userId: payload.userId as string };
   } catch {
     return null;

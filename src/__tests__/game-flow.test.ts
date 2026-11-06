@@ -21,7 +21,10 @@ let db: typeof import("@/lib/db").db;
 let schema: typeof import("@/lib/db/schema");
 let complete: typeof import("@/app/api/game/complete/route").POST;
 let answer: typeof import("@/app/api/game/answer/route").POST;
-let store: typeof import("@/app/api/trivia/questions/route").questionStore;
+let session: typeof import("@/app/api/game/session/route").POST;
+let questionsRoute: typeof import("@/app/api/trivia/questions/route").GET;
+let leaderboard: typeof import("@/app/api/leaderboard/route").GET;
+let startPlaythrough: typeof import("@/lib/playthrough").startPlaythrough;
 
 const post = (url: string, body: unknown) =>
   new NextRequest(`http://test${url}`, { method: "POST", body: JSON.stringify(body) });
@@ -41,29 +44,23 @@ beforeAll(async () => {
   schema = await import("@/lib/db/schema");
   ({ POST: complete } = await import("@/app/api/game/complete/route"));
   ({ POST: answer } = await import("@/app/api/game/answer/route"));
-  ({ questionStore: store } = await import("@/app/api/trivia/questions/route"));
+  ({ POST: session } = await import("@/app/api/game/session/route"));
+  ({ GET: questionsRoute } = await import("@/app/api/trivia/questions/route"));
+  ({ GET: leaderboard } = await import("@/app/api/leaderboard/route"));
+  ({ startPlaythrough } = await import("@/lib/playthrough"));
 });
 
 beforeEach(() => cookieJar.clear());
 
+const testQuestions = () =>
+  [{ id: "q1", question: "2+2?", category: "Maths", difficulty: "easy", correctAnswer: "4", incorrectAnswers: [] }] as never;
+
 describe("answering", () => {
-  async function played(selectedAnswer: string) {
+  async function played(selectedAnswer: string, extras: object = {}) {
     const { sessionId } = await newGame();
-    store.set("client-session", {
-      questions: [
-        { id: "q1", question: "2+2?", category: "Maths", difficulty: "easy", correctAnswer: "4", incorrectAnswers: [] },
-      ],
-      createdAt: Date.now(),
-    } as never);
+    startPlaythrough(sessionId, "quick", testQuestions(), Date.now() - 15000);
     const res = await answer(
-      post("/api/game/answer", {
-        sessionId: "client-session",
-        questionId: "q1",
-        selectedAnswer,
-        timeSpent: 15000,
-        timeLimit: 15,
-        dbSessionId: sessionId,
-      })
+      post("/api/game/answer", { sessionId, questionId: "q1", selectedAnswer, ...extras })
     );
     return { sessionId, status: res.status, body: await res.json() };
   }
@@ -75,11 +72,83 @@ describe("answering", () => {
     expect(wrong.body).toMatchObject({ isCorrect: false, points: 0, correctAnswer: "4" });
   });
 
+  it("ignores any speed, streak, mode or time limit the browser claims", async () => {
+    const cheating = await played("4", { timeSpent: 0, streak: 500, mode: "survival", timeLimit: 99999 });
+    expect(cheating.body).toMatchObject({ isCorrect: true, points: 100 });
+  });
+
+  it("a second answer to a question is refused and not stored", async () => {
+    const first = await played("5");
+    const again = await answer(
+      post("/api/game/answer", { sessionId: first.sessionId, questionId: "q1", selectedAnswer: "4" })
+    );
+    expect(again.status).toBe(409);
+    const body = await (await complete(post("/api/game/complete", { sessionId: first.sessionId }))).json();
+    expect(body).toMatchObject({ score: 0, correctCount: 0, totalQuestions: 1 });
+  });
+
   it("a session the server does not know gets a 404", async () => {
     const res = await answer(
       post("/api/game/answer", { sessionId: "nope", questionId: "q1", selectedAnswer: "4" })
     );
     expect(res.status).toBe(404);
+  });
+});
+
+describe("starting a game", () => {
+  const start = async (body: object) => (await session(post("/api/game/session", body))).json();
+
+  it("refuses an unknown mode", async () => {
+    expect((await session(post("/api/game/session", { mode: "easy-points" }))).status).toBe(400);
+  });
+
+  it("keeps an anonymous browser's id", async () => {
+    const body = await start({ userId: "browser-id-123456", mode: "quick" });
+    expect(body.userId).toBe("browser-id-123456");
+  });
+
+  it("will not play as a registered account by naming it", async () => {
+    await db.insert(schema.users).values({ id: "registered-account", nickname: "Reg", email: "r@example.com", isAnonymous: false });
+    const body = await start({ userId: "registered-account", mode: "quick" });
+    expect(body.userId).not.toBe("registered-account");
+  });
+
+  it("a signed-in player is who their session says, whatever the request claims", async () => {
+    const { createToken } = await import("@/lib/auth");
+    await db.insert(schema.users).values({ id: "signed-in-account", nickname: "S", email: "s@example.com", isAnonymous: false });
+    cookieJar.set("tw_session", await createToken("signed-in-account"));
+    const body = await start({ userId: "browser-id-123456", mode: "quick" });
+    expect(body.userId).toBe("signed-in-account");
+  });
+
+  it("deals the mode's own number of questions, and the same ones if asked again", async () => {
+    const triviaApi = await import("@/lib/triviaApi");
+    const spy = vi.spyOn(triviaApi, "fetchQuestions").mockResolvedValue(testQuestions());
+    const { sessionId } = await start({ mode: "quick" });
+    const url = `http://test/api/trivia/questions?sessionId=${sessionId}&amount=50`;
+    const first = await questionsRoute(new NextRequest(url));
+    expect(first.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ amount: 10 }));
+    expect(JSON.stringify(await first.json())).not.toContain("correctAnswer");
+    await questionsRoute(new NextRequest(url));
+    expect(spy).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+
+  it("deals nothing for a session that does not exist", async () => {
+    const res = await questionsRoute(new NextRequest("http://test/api/trivia/questions?sessionId=nope"));
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("the leaderboard", () => {
+  it("does not publish the ids that identify a player", async () => {
+    const game = await newGame();
+    await complete(post("/api/game/complete", game));
+    const body = await (await leaderboard(new NextRequest("http://test/api/leaderboard?mode=quick"))).json();
+    expect(body.entries.length).toBeGreaterThan(0);
+    expect(JSON.stringify(body)).not.toContain(game.userId);
+    expect(body.entries[0]).not.toHaveProperty("userId");
   });
 });
 
@@ -145,9 +214,22 @@ describe("completing a game", () => {
       (await import("drizzle-orm")).eq(schema.gameSessions.id, second.sessionId)
     );
     const again = await (
-      await complete(post("/api/game/complete", { sessionId: second.sessionId, userId: game.userId }))
+      await complete(post("/api/game/complete", { sessionId: second.sessionId }))
     ).json();
     expect(again.newAchievements.map((a: { name: string }) => a.name)).not.toContain("First Steps");
+  });
+
+  it("credits the session's owner, not whoever the request names", async () => {
+    const game = await withAnswers([{ isCorrect: true, points: 100, timeSpent: 1000 }]);
+    const victim = await newGame();
+    await complete(post("/api/game/complete", { sessionId: game.sessionId, userId: victim.userId }));
+    const { eq } = await import("drizzle-orm");
+    const [row] = db
+      .select()
+      .from(schema.leaderboardEntries)
+      .where(eq(schema.leaderboardEntries.sessionId, game.sessionId))
+      .all();
+    expect(row.userId).toBe(game.userId);
   });
 
   it("rejects missing fields and unknown sessions", async () => {

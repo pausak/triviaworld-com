@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { GAME_RULES } from "@/lib/gameRules";
 import { useGameStore } from "@/stores/gameStore";
 import { DifficultySelector } from "@/components/DifficultySelector";
 import { QuestionCard } from "@/components/QuestionCard";
@@ -20,8 +21,8 @@ export default function SurvivalPage() {
       await startGame({
         mode: "survival",
         difficulty: difficulty || undefined,
-        questionCount: 50, // max batch, game ends on 3 wrong
-        timePerQuestion: 20,
+        questionCount: GAME_RULES.survival.questionCount,
+        timePerQuestion: GAME_RULES.survival.timePerQuestion,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to start");

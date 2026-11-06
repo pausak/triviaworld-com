@@ -76,10 +76,19 @@ export async function GET(request: NextRequest) {
   for (const r of rows) {
     if (seen.has(r.userId)) continue;
     seen.add(r.userId);
-    const { snapshotNickname, currentNickname, ...rest } = r;
+    // Leave the user id out: it is what an anonymous browser proves itself with.
     entries.push({
-      ...rest,
-      nickname: currentNickname || snapshotNickname || "Anonymous",
+      id: r.id,
+      score: r.score,
+      accuracy: r.accuracy,
+      correctCount: r.correctCount,
+      totalQuestions: r.totalQuestions,
+      category: r.category,
+      difficulty: r.difficulty,
+      mode: r.mode,
+      date: r.date,
+      createdAt: r.createdAt,
+      nickname: r.currentNickname || r.snapshotNickname || "Anonymous",
     });
     if (entries.length >= limit) break;
   }

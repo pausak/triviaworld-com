@@ -4,16 +4,14 @@ import { gameSessions, leaderboardEntries, categoryStats, answers as answersTabl
 import { incrementGamesPlayed } from "@/lib/db/users";
 import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { endPlaythrough } from "@/lib/playthrough";
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const { sessionId, userId } = body;
+  const { sessionId } = body;
 
-  if (!sessionId || !userId) {
-    return NextResponse.json(
-      { error: "sessionId and userId required" },
-      { status: 400 }
-    );
+  if (!sessionId) {
+    return NextResponse.json({ error: "sessionId required" }, { status: 400 });
   }
 
   const session = await db
@@ -35,6 +33,10 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+
+  // The session says whose game this is. Nothing the request says can change that.
+  const userId = session.userId;
+  endPlaythrough(session.id);
 
   // Get all answers for this session
   const sessionAnswers = await db
@@ -64,8 +66,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Update session
-  await db
+  // Update session. Only one request can move it out of active, so two arriving
+  // together cannot both reach the leaderboard.
+  const claimed = await db
     .update(gameSessions)
     .set({
       score: totalScore,
@@ -77,7 +80,12 @@ export async function POST(request: NextRequest) {
       status: "completed",
       completedAt: new Date().toISOString(),
     })
-    .where(eq(gameSessions.id, sessionId));
+    .where(and(eq(gameSessions.id, sessionId), eq(gameSessions.status, "active")))
+    .returning({ id: gameSessions.id });
+
+  if (claimed.length === 0) {
+    return NextResponse.json({ error: "Session already completed" }, { status: 400 });
+  }
 
   // Add leaderboard entry
   const today = new Date().toISOString().split("T")[0];

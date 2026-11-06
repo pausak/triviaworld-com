@@ -5,6 +5,7 @@ import { useGameStore } from "@/stores/gameStore";
 import { QuestionCard } from "@/components/QuestionCard";
 import { GameResults } from "@/components/GameResults";
 import { nanoid } from "nanoid";
+import { GAME_RULES } from "@/lib/gameRules";
 
 export default function DailyChallengePage() {
   const status = useGameStore((s) => s.status);
@@ -13,21 +14,23 @@ export default function DailyChallengePage() {
 
   const startDaily = async () => {
     const store = useGameStore.getState();
-    const sessionId = nanoid();
-    const userId = localStorage.getItem("triviaworld_user_id") || nanoid();
-    localStorage.setItem("triviaworld_user_id", userId);
+    const browserUserId = localStorage.getItem("triviaworld_user_id") || nanoid();
 
     // Create DB session
     const sessionRes = await fetch("/api/game/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, mode: "daily" }),
+      body: JSON.stringify({ userId: browserUserId, mode: "daily" }),
     });
     const sessionData = await sessionRes.json();
+    if (!sessionRes.ok) throw new Error(sessionData.error || "Failed to start game");
+    const sessionId: string = sessionData.sessionId;
+    const userId: string = sessionData.userId;
+    localStorage.setItem("triviaworld_user_id", userId);
 
     // Fetch daily questions
     const res = await fetch(
-      `/api/trivia/daily?sessionId=${sessionId}&userId=${userId}`
+      `/api/trivia/daily?sessionId=${sessionId}`
     );
     const data = await res.json();
 
@@ -42,11 +45,11 @@ export default function DailyChallengePage() {
     useGameStore.setState({
       config: {
         mode: "daily",
-        questionCount: 10,
-        timePerQuestion: 15,
+        questionCount: GAME_RULES.daily.questionCount,
+        timePerQuestion: GAME_RULES.daily.timePerQuestion,
       },
       sessionId,
-      dbSessionId: sessionData.sessionId,
+      dbSessionId: sessionId,
       userId,
       questions: data.questions,
       status: "playing",
@@ -55,7 +58,7 @@ export default function DailyChallengePage() {
       score: 0,
       streak: 0,
       lives: Infinity,
-      timeRemaining: 15,
+      timeRemaining: GAME_RULES.daily.timePerQuestion,
       questionStartTime: Date.now(),
       result: null,
     });

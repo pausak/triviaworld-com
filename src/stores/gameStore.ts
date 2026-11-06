@@ -62,13 +62,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   result: null,
 
   startGame: async (config: GameConfig) => {
-    const sessionId = nanoid();
-    const userId = getUserId();
+    const browserUserId = getUserId();
 
     set({
       config,
-      sessionId,
-      userId,
+      sessionId: null,
+      userId: browserUserId,
       status: "loading",
       questions: [],
       currentIndex: 0,
@@ -86,18 +85,20 @@ export const useGameStore = create<GameState>((set, get) => ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId,
+          userId: browserUserId,
           mode: config.mode,
           category: config.categoryName,
           difficulty: config.difficulty,
         }),
       });
       const sessionData = await sessionRes.json();
-      const dbSessionId = sessionData.sessionId;
+      if (!sessionRes.ok) throw new Error(sessionData.error || "Failed to start game");
+      const sessionId: string = sessionData.sessionId;
+      // The server decides who is playing, and the browser keeps what it says.
+      localStorage.setItem(USER_ID_KEY, sessionData.userId);
 
       // Fetch questions
       const params = new URLSearchParams({
-        amount: config.questionCount.toString(),
         sessionId,
       });
       if (config.category) params.set("category", config.category.toString());
@@ -112,7 +113,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       const data = await response.json();
       set({
         questions: data.questions,
-        dbSessionId,
+        sessionId,
+        dbSessionId: sessionId,
+        userId: sessionData.userId,
         status: "playing",
         timeRemaining: config.timePerQuestion,
         questionStartTime: Date.now(),
@@ -137,13 +140,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         sessionId: state.sessionId,
-        dbSessionId: state.dbSessionId,
         questionId: question.id,
         selectedAnswer,
-        timeSpent,
-        mode: state.config.mode,
-        streak: state.streak,
-        timeLimit: state.config.timePerQuestion,
       }),
     });
 
@@ -190,6 +188,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       return;
     }
 
+    // Starts the server's clock on this question.
+    fetch("/api/game/next", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: state.sessionId }),
+    }).catch(() => {});
+
     set({
       currentIndex: nextIndex,
       status: "playing",
@@ -220,13 +225,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId: state.sessionId,
-          dbSessionId: state.dbSessionId,
           questionId: question.id,
           selectedAnswer: "__TIMEOUT__",
-          timeSpent,
-          mode: state.config!.mode,
-          streak: 0,
-          timeLimit: state.config!.timePerQuestion,
         }),
       });
       const result = await response.json();
@@ -282,7 +282,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId: state.dbSessionId,
-          userId: state.userId,
         }),
       }).catch(() => {});
     }

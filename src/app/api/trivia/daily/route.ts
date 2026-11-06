@@ -1,51 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { dailyChallenges } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { dailyChallenges, gameSessions } from "@/lib/db/schema";
+import { and, eq } from "drizzle-orm";
+import { getPlaythrough, startPlaythrough } from "@/lib/playthrough";
 import { fetchQuestions, sanitizeForClient } from "@/lib/triviaApi";
 import { nanoid } from "nanoid";
 import type { QuestionWithAnswer } from "@/types/trivia";
 
-// Store daily questions server-side for validation
-const dailyQuestionStore = new Map<
-  string,
-  { questions: QuestionWithAnswer[]; date: string }
->();
-
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const sessionId = params.get("sessionId");
-  const userId = params.get("userId");
 
   if (!sessionId) {
     return NextResponse.json({ error: "sessionId required" }, { status: 400 });
   }
 
+  const session = await db.select().from(gameSessions).where(eq(gameSessions.id, sessionId)).get();
+  if (!session || session.status !== "active") {
+    return NextResponse.json({ error: "Session not found or finished" }, { status: 404 });
+  }
+  if (session.mode !== "daily") {
+    return NextResponse.json({ error: "Wrong game mode for this session" }, { status: 400 });
+  }
+  const userId = session.userId;
+
   const today = new Date().toISOString().split("T")[0];
 
   // Check if user already played today
-  if (userId) {
-    const { gameSessions } = await import("@/lib/db/schema");
-    const { and } = await import("drizzle-orm");
-    const existing = await db
-      .select()
-      .from(gameSessions)
-      .where(
-        and(
-          eq(gameSessions.userId, userId),
-          eq(gameSessions.mode, "daily"),
-          eq(gameSessions.status, "completed")
-        )
+  const finishedDailies = await db
+    .select()
+    .from(gameSessions)
+    .where(
+      and(
+        eq(gameSessions.userId, userId),
+        eq(gameSessions.mode, "daily"),
+        eq(gameSessions.status, "completed")
       )
-      .all();
+    )
+    .all();
 
-    const playedToday = existing.some((s) => s.startedAt.startsWith(today));
-    if (playedToday) {
-      return NextResponse.json(
-        { error: "Already played today's challenge", alreadyPlayed: true },
-        { status: 409 }
-      );
-    }
+  if (finishedDailies.some((s) => s.startedAt.startsWith(today))) {
+    return NextResponse.json(
+      { error: "Already played today's challenge", alreadyPlayed: true },
+      { status: 409 }
+    );
+  }
+
+  const existingGame = getPlaythrough(sessionId);
+  if (existingGame) {
+    return NextResponse.json({
+      questions: sanitizeForClient(existingGame.questions),
+      sessionId,
+      date: today,
+    });
   }
 
   // Check DB cache for today's questions
@@ -74,15 +81,7 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Store for answer validation (reuse question store mechanism)
-  const { questionStore } = await import("@/app/api/trivia/questions/route");
-  questionStore.set(sessionId, {
-    questions,
-    expiresAt: Date.now() + 30 * 60 * 1000,
-  });
-
-  // Also store in daily store for reference
-  dailyQuestionStore.set(today, { questions, date: today });
+  startPlaythrough(sessionId, "daily", questions);
 
   return NextResponse.json({
     questions: sanitizeForClient(questions),
@@ -90,5 +89,3 @@ export async function GET(request: NextRequest) {
     date: today,
   });
 }
-
-export { dailyQuestionStore };

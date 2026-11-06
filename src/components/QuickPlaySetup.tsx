@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { GAME_RULES } from "@/lib/gameRules";
 import { useSearchParams } from "next/navigation";
 import { CategoryPicker } from "./CategoryPicker";
 import { DifficultySelector } from "./DifficultySelector";
@@ -31,8 +32,8 @@ export function QuickPlaySetup() {
       category: category?.id,
       categoryName: category?.name,
       difficulty: difficulty || undefined,
-      questionCount: 10,
-      timePerQuestion: 15,
+      questionCount: GAME_RULES.quick.questionCount,
+      timePerQuestion: GAME_RULES.quick.timePerQuestion,
     };
 
     try {
