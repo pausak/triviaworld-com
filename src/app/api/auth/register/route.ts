@@ -4,17 +4,24 @@ import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { createToken, setSessionCookie } from "@/lib/auth";
 import bcrypt from "bcrypt";
+import { clientIp, consumeRateLimits, RATE_RULES, tooManyAttempts } from "@/lib/rateLimit";
 import { nanoid } from "nanoid";
 
 export async function POST(request: NextRequest) {
   const { email, password, nickname, anonymousUserId } = await request.json();
 
-  if (!email || !password) {
+  if (!email || !password || typeof email !== "string" || typeof password !== "string") {
     return NextResponse.json(
       { error: "Email and password are required" },
       { status: 400 }
     );
   }
+
+  // Also limits using "Email already registered" to find out who has an account.
+  const retryAfter = consumeRateLimits([
+    { rule: RATE_RULES.register, subject: clientIp(request) },
+  ]);
+  if (retryAfter !== null) return tooManyAttempts(retryAfter);
 
   if (password.length < 6) {
     return NextResponse.json(

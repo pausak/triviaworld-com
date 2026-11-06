@@ -59,6 +59,12 @@ function ensureSchema(db: Database.Database) {
       is_niche INTEGER NOT NULL DEFAULT 0,
       first_seen_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key TEXT PRIMARY KEY,
+      count INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL
+    );
   `);
 
   // Check if the original tables exist; if not, create them

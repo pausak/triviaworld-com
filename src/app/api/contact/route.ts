@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clientIp, consumeRateLimits, RATE_RULES } from "@/lib/rateLimit";
 import { Resend } from "resend";
 
 const CATEGORIES = {
@@ -9,29 +10,6 @@ const CATEGORIES = {
 } as const;
 
 type Category = keyof typeof CATEGORIES;
-
-const ratelimit = new Map<string, number[]>();
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const RATE_LIMIT_MAX = 3;
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const prior = ratelimit.get(ip) ?? [];
-  const recent = prior.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  if (recent.length >= RATE_LIMIT_MAX) {
-    ratelimit.set(ip, recent);
-    return true;
-  }
-  recent.push(now);
-  ratelimit.set(ip, recent);
-  return false;
-}
-
-function getClientIp(req: NextRequest): string {
-  const forwarded = req.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return req.headers.get("x-real-ip") ?? "unknown";
-}
 
 function escapeHtml(s: string): string {
   return s
@@ -90,8 +68,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const ip = getClientIp(request);
-  if (isRateLimited(ip)) {
+  const ip = clientIp(request);
+  if (consumeRateLimits([{ rule: RATE_RULES.contact, subject: ip }]) !== null) {
     return NextResponse.json(
       { error: "Too many submissions. Please try again later." },
       { status: 429 }

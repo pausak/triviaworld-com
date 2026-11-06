@@ -18,6 +18,12 @@ export const users = sqliteTable("users", {
   updatedAt: text("updated_at").notNull().$defaultFn(() => new Date().toISOString()),
 });
 
+export const rateLimits = sqliteTable("rate_limits", {
+  key: text("key").primaryKey(), // sha256 of the rule and subject
+  count: integer("count").notNull(),
+  expiresAt: integer("expires_at").notNull(), // ms
+});
+
 export const gameSessions = sqliteTable("game_sessions", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => users.id),

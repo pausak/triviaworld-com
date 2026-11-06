@@ -50,7 +50,10 @@ beforeAll(async () => {
   ({ startPlaythrough } = await import("@/lib/playthrough"));
 });
 
-beforeEach(() => cookieJar.clear());
+beforeEach(async () => {
+  cookieJar.clear();
+  await db.delete(schema.rateLimits);
+});
 
 const testQuestions = () =>
   [{ id: "q1", question: "2+2?", category: "Maths", difficulty: "easy", correctAnswer: "4", incorrectAnswers: [] }] as never;
