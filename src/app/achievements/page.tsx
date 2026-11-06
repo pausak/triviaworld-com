@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useStoredValue } from "@/lib/clientState";
 
 interface Achievement {
   id: string;
@@ -21,24 +22,21 @@ const categoryLabels: Record<string, string> = {
 
 export default function AchievementsPage() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const userId = useStoredValue("triviaworld_user_id");
+  const [fetched, setFetched] = useState(false);
   const [filter, setFilter] = useState<string>("all");
 
   useEffect(() => {
-    const userId = localStorage.getItem("triviaworld_user_id");
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
+    if (!userId) return;
 
     fetch(`/api/profile/achievements?userId=${userId}`)
       .then((r) => r.json())
-      .then((data) => {
-        setAchievements(data.achievements || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+      .then((data) => setAchievements(data.achievements || []))
+      .catch(() => {})
+      .finally(() => setFetched(true));
+  }, [userId]);
+
+  const loading = userId === undefined || (userId !== null && !fetched);
 
   const filtered =
     filter === "all"

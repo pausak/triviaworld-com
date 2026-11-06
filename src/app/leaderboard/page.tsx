@@ -21,17 +21,25 @@ export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [mode, setMode] = useState<GameMode>("quick");
   const [timeframe, setTimeframe] = useState("all");
-  const [loading, setLoading] = useState(true);
+  const selection = `${mode}|${timeframe}`;
+  const [loadedSelection, setLoadedSelection] = useState<string | null>(null);
+  const loading = loadedSelection !== selection;
 
   useEffect(() => {
-    setLoading(true);
+    // A slow answer for a tab the person has left must not replace the current one.
+    let current = true;
     fetch(`/api/leaderboard?mode=${mode}&timeframe=${timeframe}`)
       .then((r) => r.json())
       .then((data) => {
-        setEntries(data.entries || []);
-        setLoading(false);
+        if (current) setEntries(data.entries || []);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {})
+      .finally(() => {
+        if (current) setLoadedSelection(`${mode}|${timeframe}`);
+      });
+    return () => {
+      current = false;
+    };
   }, [mode, timeframe]);
 
   return (

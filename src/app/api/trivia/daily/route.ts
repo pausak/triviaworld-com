@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Check DB cache for today's questions
-  let dailyEntry = await db
+  const dailyEntry = await db
     .select()
     .from(dailyChallenges)
     .where(eq(dailyChallenges.date, today))

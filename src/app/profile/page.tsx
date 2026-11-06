@@ -30,7 +30,7 @@ export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [categories, setCategories] = useState<CategoryStat[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [fetchedFor, setFetchedFor] = useState<string | null>(null);
 
   const userId =
     user?.id ||
@@ -38,19 +38,18 @@ export default function ProfilePage() {
       ? localStorage.getItem("triviaworld_user_id")
       : null);
 
+  const loading = !!userId && fetchedFor !== userId;
+
   useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
+    if (!userId) return;
     fetch(`/api/profile/stats?userId=${userId}`)
       .then((r) => r.json())
       .then((data) => {
         setStats(data.stats);
         setCategories(data.categories || []);
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {})
+      .finally(() => setFetchedFor(userId));
   }, [userId]);
 
   if (authLoading || loading) {

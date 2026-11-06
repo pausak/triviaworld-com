@@ -1,43 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CategoryPicker } from "./CategoryPicker";
 import { DifficultySelector } from "./DifficultySelector";
 import { useGameStore } from "@/stores/gameStore";
-import { categories as curatedCategories } from "@/lib/categories";
+import { categoryFromParam, difficultyFromParam } from "@/lib/deepLink";
 import type { TriviaCategory, Difficulty, GameConfig } from "@/types/trivia";
 
 export function QuickPlaySetup() {
   const searchParams = useSearchParams();
-  const [category, setCategory] = useState<TriviaCategory | null>(null);
-  const [difficulty, setDifficulty] = useState<Difficulty | null>("easy");
+  // The link's choices apply until the person makes their own. A cleared category
+  // falls back to the link; a cleared difficulty stays cleared ("any").
+  const [pickedCategory, setCategory] = useState<TriviaCategory | null>(null);
+  const [pickedDifficulty, setDifficulty] = useState<Difficulty | null | undefined>(undefined);
+  const category = pickedCategory ?? categoryFromParam(searchParams.get("category"));
+  const difficulty =
+    pickedDifficulty !== undefined
+      ? pickedDifficulty
+      : difficultyFromParam(searchParams.get("difficulty")) ?? "easy";
   const [error, setError] = useState<string | null>(null);
   const startGame = useGameStore((s) => s.startGame);
   const status = useGameStore((s) => s.status);
 
-  useEffect(() => {
-    const catParam = searchParams.get("category");
-    if (!catParam || category) return;
-    const id = parseInt(catParam, 10);
-    if (Number.isNaN(id)) return;
-    // Resolve deep links from the /trivia SEO pages (all 24 curated categories),
-    // not just the 10 in the picker, so a collapsed category still plays its
-    // mapped question pool with a sensible name.
-    const match = curatedCategories.find((c) => c.openTdbId === id);
-    if (match) setCategory({ id: match.openTdbId, name: match.shortName });
-  }, [searchParams, category]);
-
-  useEffect(() => {
-    const diffParam = searchParams.get("difficulty");
-    if (
-      diffParam === "easy" ||
-      diffParam === "medium" ||
-      diffParam === "hard"
-    ) {
-      setDifficulty(diffParam);
-    }
-  }, [searchParams]);
 
   const handleStart = async () => {
     setError(null);
