@@ -4,7 +4,9 @@ FROM node:24-alpine AS base
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# better-sqlite3 ships a prebuilt binary for every platform, and this image has no
+# compiler: without this, npm tries to build it because it finds a binding.gyp.
+RUN npm ci --ignore-scripts
 
 # --- Builder ---
 FROM base AS builder

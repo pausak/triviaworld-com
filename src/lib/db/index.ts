@@ -13,13 +13,32 @@ const dbPath = path.join(dataDir, "triviaworld.db");
 let sqlite: Database.Database | null = null;
 
 function getDatabase() {
-  if (!sqlite) {
-    sqlite = new Database(dbPath);
-    sqlite.pragma("journal_mode = WAL");
-    sqlite.pragma("foreign_keys = ON");
-    ensureSchema(sqlite);
-  }
+  if (!sqlite) sqlite = openDatabase();
   return sqlite;
+}
+
+// next build imports this from many worker processes at once. On a new file they
+// race to switch to WAL and create the tables, and SQLite answers some of those
+// lock conflicts with SQLITE_BUSY at once instead of waiting out the busy timeout.
+// Every step here is safe to repeat, so a worker that loses just tries again.
+const OPEN_RETRY_MS = 30_000;
+
+function openDatabase() {
+  const giveUpAt = Date.now() + OPEN_RETRY_MS;
+  for (;;) {
+    const db = new Database(dbPath);
+    try {
+      db.pragma("journal_mode = WAL");
+      db.pragma("foreign_keys = ON");
+      ensureSchema(db);
+      return db;
+    } catch (err) {
+      db.close();
+      const code = (err as { code?: string }).code ?? "";
+      if (!code.startsWith("SQLITE_BUSY") || Date.now() > giveUpAt) throw err;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50 + Math.random() * 200);
+    }
+  }
 }
 
 function ensureSchema(db: Database.Database) {
