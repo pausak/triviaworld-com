@@ -1,0 +1,36 @@
+name: CI
+
+# Every push is checked on the Node this project runs on and on the current LTS.
+# The newest release runs too, as an early warning: on a push it may fail without
+# failing the run, and on the weekly schedule a failure fails the run, which is
+# what sends the email. Scheduled runs only start from the default branch.
+on:
+  push:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Node ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.early-warning && github.event_name != 'schedule' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: pinned, node-version-file: .nvmrc, node-version: "", early-warning: false }
+          - { label: LTS, node-version-file: "", node-version: "lts/*", early-warning: false }
+          - { label: latest, node-version-file: "", node-version: latest, early-warning: true }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node-version }}
+          node-version-file: ${{ matrix.node-version-file }}
+          cache: npm
+      - run: npm ci
+      - run: npm run verify
